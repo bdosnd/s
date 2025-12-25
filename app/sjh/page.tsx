@@ -249,9 +249,27 @@ export default function PhoneGeneratorPage() {
     if (!selectedCountry) return;
     haptic(50);
 
-    const numbers = generatePhoneNumber(selectedCountry, count);
-    setGeneratedNumbers(numbers);
-    setPage(0);
+    // 性能优化：分批生成，避免 UI 冻结
+    if (count <= 1000) {
+      // 小批量直接生成
+      const numbers = generatePhoneNumber(selectedCountry, count);
+      setGeneratedNumbers(numbers);
+      setPage(0);
+    } else {
+      // 大批量分批生成
+      const batchSize = 500;
+      const batches = Math.ceil(count / batchSize);
+      let allNumbers: string[] = [];
+
+      for (let i = 0; i < batches; i++) {
+        const currentBatchSize = Math.min(batchSize, count - i * batchSize);
+        const batchNumbers = generatePhoneNumber(selectedCountry, currentBatchSize);
+        allNumbers = allNumbers.concat(batchNumbers);
+      }
+
+      setGeneratedNumbers(allNumbers);
+      setPage(0);
+    }
 
     try {
       localStorage.setItem(STORAGE_KEY_COUNT, count.toString());
@@ -371,7 +389,7 @@ export default function PhoneGeneratorPage() {
             <button
               onClick={handleGenerate}
               disabled={!selectedCountry}
-              className="w-full py-4 rounded-[18px] bg-gradient-to-b from-[#007AFF]/90 to-[#0055b3]/90 shadow-[0_0_20px_rgba(0,122,255,0.4)] border border-white/20 flex items-center justify-center gap-2.5 touch-manipulation transition-all duration-200 active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="generate-button w-full py-4 rounded-[18px] bg-gradient-to-b from-[#007AFF]/90 to-[#0055b3]/90 shadow-[0_0_20px_rgba(0,122,255,0.4)] border border-white/20 flex items-center justify-center gap-2.5 touch-manipulation transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Icon name="sparkles" className="w-5 h-5 text-white/90 drop-shadow-sm" />
               <span className="text-[17px] font-semibold tracking-tight text-white drop-shadow-md">
@@ -483,6 +501,29 @@ export default function PhoneGeneratorPage() {
 
       {/* 导航菜单 */}
       <NavigationMenu isOpen={showMenu} onClose={() => setShowMenu(false)} />
+
+      {/* 按钮动画样式 */}
+      <style jsx>{`
+        .generate-button {
+          transform-origin: center;
+        }
+
+        .generate-button:active:not(:disabled) {
+          animation: buttonPress 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes buttonPress {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(0.92);
+          }
+          100% {
+            transform: scale(1.02);
+          }
+        }
+      `}</style>
     </div>
   );
 }
